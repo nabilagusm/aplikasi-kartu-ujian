@@ -1,0 +1,483 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AKU SEKOLAH - Aplikasi Kartu Ujian (Interactive Edition)</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #1e3799;
+            --accent-color: #4a69bd;
+            --danger-color: #eb4d4b;
+            --info-color: #0abde3;
+            --bg-color: #eef2f7; 
+            --gradient-start: #ff8c00;
+            --gradient-end: #ff0080;
+            --sidebar-width: 450px; /* Sedikit dilebarkan untuk UI tombol baru */
+        }
+
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: var(--bg-color); 
+            margin: 0; 
+            padding: 20px; 
+            height: 100vh;
+            box-sizing: border-box;
+            display: flex;
+            justify-content: center;
+        }
+        
+        .app-container {
+            display: flex;
+            gap: 20px;
+            width: 100%;
+            max-width: 1500px;
+            height: 100%;
+        }
+
+        .sidebar {
+            flex: 0 0 var(--sidebar-width);
+            background: white;
+            padding: 25px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .sidebar::-webkit-scrollbar { width: 6px; }
+        .sidebar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+        .sidebar::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 10px; }
+        .sidebar::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+
+        .preview-wrapper {
+            flex: 1;
+            background: #ffffff;
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.02);
+            border: 2px dashed #cbd5e1;
+            overflow-y: auto;
+            position: relative;
+        }
+        
+        .preview-header {
+            text-align: center;
+            color: #64748b;
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .app-header { 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 2px dashed #f1f2f6;
+            gap: 15px;
+        }
+        
+        .main-logo {
+            width: 60px;
+            height: auto;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+        }
+
+        .header-text-container { text-align: left; }
+        .header-text-container h1 { color: var(--primary-color); margin: 0; font-size: 32px; font-weight: 800; letter-spacing: -0.5px; text-transform: uppercase; }
+        .app-subtitle {
+            display: inline-block; background: linear-gradient(45deg, var(--gradient-start), var(--gradient-end));
+            color: white; padding: 4px 15px; border-radius: 50px; font-size: 13px; font-weight: bold;
+            margin-top: 4px; box-shadow: 0 4px 10px rgba(255, 0, 128, 0.2);
+        }
+
+        .grid-config { display: flex; flex-direction: column; gap: 15px; }
+        
+        .form-group { margin-bottom: 5px; }
+        label { display: block; font-weight: 600; margin-bottom: 5px; font-size: 12px; color: #475569; }
+        input[type="text"] { 
+            width: 100%; padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px; box-sizing: border-box; font-size: 13px;
+            transition: 0.3s; background: #f8fafc; color: #334155;
+        }
+        input[type="text"]:focus { border-color: var(--accent-color); outline: none; background: white; box-shadow: 0 0 0 3px rgba(74, 105, 189, 0.1); }
+
+        /* TAMPILAN UPLOAD FILE YANG INTERAKTIF */
+        .file-upload-wrapper { position: relative; overflow: hidden; display: inline-block; width: 100%; }
+        .file-upload-wrapper input[type=file] { font-size: 100px; position: absolute; left: 0; top: 0; opacity: 0; cursor: pointer; height: 100%; width: 100%; }
+        .custom-file-btn {
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            background: #f8fafc; border: 2px dashed #cbd5e1; color: #64748b;
+            padding: 10px; border-radius: 8px; font-weight: 600; cursor: pointer;
+            transition: 0.3s; text-align: center; font-size: 12px;
+        }
+        .file-upload-wrapper:hover .custom-file-btn { background: #eef2f7; border-color: var(--accent-color); color: var(--primary-color); }
+        .file-upload-wrapper.active .custom-file-btn { border-color: #27ae60; color: #27ae60; background: #eafaf1; border-style: solid; }
+
+        .upload-excel-box { background: #f0f4ff; padding: 15px; border: 2px dashed #4a69bd; border-radius: 10px; margin-top: 10px; }
+        .foto-box-warning { background: #fff0f0; padding: 12px; border: 1.5px solid #ffcccc; border-radius: 8px; margin-top: 5px; }
+
+        .credit-text { text-align: center; font-size: 13px; font-weight: 600; color: #94a3b8; margin-top: 25px; margin-bottom: 15px; font-style: italic; }
+        .btn-container { text-align: center; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+        button { flex: 1; color: white; border: none; padding: 12px 15px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: bold; transition: 0.3s; display:flex; justify-content:center; align-items:center; gap:5px; }
+        .btn-print { background: linear-gradient(135deg, #27ae60, #2ecc71); min-width: 40%; }
+        .btn-print:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(46, 204, 113, 0.3); }
+        .btn-reset { background: linear-gradient(135deg, #c0392b, #e74c3c); }
+        .btn-reset:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(231, 76, 60, 0.3); }
+        .btn-guide { background: linear-gradient(135deg, var(--info-color), #00a8ff); flex-basis: 100%; }
+        .btn-guide:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(10, 189, 227, 0.3); }
+
+        #print-area { display: grid; grid-template-columns: repeat(auto-fill, 9.5cm); justify-content: center; gap: 15px; }
+
+        /* MODAL PETUNJUK PENGGUNAAN */
+        .modal { display: none; position: fixed; z-index: 999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); backdrop-filter: blur(5px); }
+        .modal-content { background-color: #fefefe; margin: 10% auto; padding: 30px; border: 1px solid #888; width: 80%; max-width: 600px; border-radius: 15px; box-shadow: 0 15px 40px rgba(0,0,0,0.2); animation: modalFade 0.3s; }
+        @keyframes modalFade { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+        .close { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        .close:hover, .close:focus { color: #e74c3c; text-decoration: none; }
+        .modal-content h2 { color: var(--primary-color); margin-top: 0; border-bottom: 2px solid #eef2f7; padding-bottom: 10px; }
+        .modal-content li { margin-bottom: 10px; line-height: 1.5; color: #334155; }
+        .highlight { background: #ffeaa7; padding: 2px 5px; border-radius: 4px; font-weight: bold; color: #d35400; }
+
+        /* Style Kartu Ujian (Sama seperti V8) */
+        .card { width: 9.5cm; height: 7.5cm; border: 2px solid #000; background: white; padding: 10px; position: relative; box-sizing: border-box; overflow: hidden; page-break-inside: avoid; }
+        .card-header { display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #000; padding-bottom: 5px; margin-bottom: 8px; }
+        .logo-box { width: 48px; height: 48px; object-fit: contain; }
+        .header-text { text-align: center; flex: 1; margin: 0 5px; }
+        .header-text .kab { font-size: 9px; font-weight: bold; margin: 0; }
+        .header-text h2 { margin: 1px 0; font-size: 11px; text-transform: uppercase; }
+        .header-text .ujian { margin: 1px 0; font-size: 8px; font-weight: bold; }
+        .header-text .alamat { margin: 0; font-size: 7px; font-style: italic; color: #333; line-height: 1; }
+        .card-title { text-align: center; font-weight: bold; font-size: 11px; margin-bottom: 8px; text-decoration: underline; text-transform: uppercase; }
+        .card-content { display: flex; gap: 10px; }
+        .photo-box { width: 2.1cm; height: 2.8cm; border: 1px solid #000; display: flex; align-items: center; justify-content: center; font-size: 8px; background: #f8fafc; text-align: center; color: #94a3b8; }
+        .photo-box img { width: 100%; height: 100%; object-fit: cover; }
+        .info-table { flex: 1; }
+        .info-table table { width: 100%; font-size: 9.5px; border-collapse: collapse; line-height: 1.3; color: #000; }
+        .info-table td { padding: 2px 0; vertical-align: top; }
+        .label-cell { width: 75px; font-weight: bold; position: relative; }
+        .label-cell::after { content: ':'; position: absolute; right: 5px; }
+        .footer { position: absolute; bottom: 8px; left: 10px; right: 10px; display: flex; justify-content: space-between; align-items: flex-end; padding-top: 5px; }
+        .qr-code { width: 45px; height: 45px; }
+        .signature-area { width: 160px; text-align: center; position: relative; color: #000; }
+        .job-title { font-size: 9px; margin-bottom: 2px; }
+        .ttd-box { height: 50px; position: relative; margin: 1px 0; }
+        .img-ttd { height: 45px; position: absolute; left: 50%; transform: translateX(-50%); z-index: 2; }
+        .img-stempel { height: 90px; position: absolute; left: 10px; top: -25px; z-index: 5; mix-blend-mode: multiply; opacity: 0.85; }
+        .headmaster-name { font-size: 9.5px; font-weight: bold; text-decoration: underline; margin-bottom: 0; z-index: 3; position: relative;}
+        .headmaster-nip { font-size: 8.5px; margin-top: 0; z-index: 3; position: relative;}
+
+        @media (max-width: 900px) {
+            body { height: auto; overflow: visible; }
+            .app-container { flex-direction: column; }
+            .sidebar { flex: none; width: auto; max-width: none; }
+            .preview-wrapper { overflow: visible; }
+        }
+
+        @media print {
+            body { background: white; padding: 0; margin: 0; height: auto; display: block; }
+            .app-container { display: block; gap: 0; max-width: none; }
+            .sidebar, .modal { display: none !important; }
+            .preview-wrapper { padding: 0; border: none; box-shadow: none; background: transparent; display: block; }
+            .preview-header { display: none !important; }
+            #print-area { display: grid; grid-template-columns: repeat(2, 9.5cm); gap: 10px; padding: 5mm; justify-content: start; }
+            .card { border-width: 1px; }
+            @page { size: 215mm 330mm; margin: 5mm; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    
+    <div class="sidebar no-print">
+        <div class="app-header">
+            <!-- LOGO TUT WURI HANDAYANI (EMBEDDED) -->
+            <img src="" alt="Tut Wuri Handayani" class="main-logo">
+            <div class="header-text-container">
+                <h1>AKU SEKOLAH</h1>
+                <div class="app-subtitle">Aplikasi Kartu Ujian</div>
+            </div>
+        </div>
+        
+        <div class="grid-config">
+            <div class="form-group">
+                <label>Pemerintah Kabupaten/Kota</label>
+                <input type="text" id="input-kab" placeholder="PEMERINTAH KABUPATEN BOGOR" oninput="updatePreview()">
+            </div>
+            <div class="form-group">
+                <label>Nama Madrasah/Sekolah</label>
+                <input type="text" id="input-sekolah" placeholder="MTs NEGERI 1 BOGOR" oninput="updatePreview()">
+            </div>
+            <div class="form-group">
+                <label>Tahun Pelajaran / Nama Ujian</label>
+                <input type="text" id="input-ujian" placeholder="ASESMEN MADRASAH TP. 2024/2025" oninput="updatePreview()">
+            </div>
+            <div class="form-group">
+                <label>Alamat Jalan Sekolah</label>
+                <input type="text" id="input-alamat" placeholder="Jl. Raya Utama No. 123, Kec. Cibinong" oninput="updatePreview()">
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <div class="form-group" style="flex: 1;">
+                    <label>Nama Kepala Sekolah</label>
+                    <input type="text" id="input-kepsek" placeholder="Drs. H. Mulyadi, M.Pd" oninput="updatePreview()">
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label>NIP Kepala Sekolah</label>
+                    <input type="text" id="input-nip" placeholder="19750101 200003 1 002" oninput="updatePreview()">
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 10px; margin-top: 5px;">
+                <div class="form-group" style="flex: 1;">
+                    <label>Logo Kiri</label>
+                    <div class="file-upload-wrapper" id="wrap-logo1">
+                        <input type="file" onchange="handleUIFile(this, 'logo1', 'lbl-logo1')">
+                        <div class="custom-file-btn" id="lbl-logo1">🖼️ Pilih Logo Kiri</div>
+                    </div>
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label>Logo Kanan</label>
+                    <div class="file-upload-wrapper" id="wrap-logo2">
+                        <input type="file" onchange="handleUIFile(this, 'logo2', 'lbl-logo2')">
+                        <div class="custom-file-btn" id="lbl-logo2">🖼️ Pilih Logo Kanan</div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+                <div class="form-group" style="flex: 1;">
+                    <label>Tanda Tangan</label>
+                    <div class="file-upload-wrapper" id="wrap-ttd">
+                        <input type="file" onchange="handleUIFile(this, 'ttd', 'lbl-ttd')">
+                        <div class="custom-file-btn" id="lbl-ttd">✍️ Upload TTD</div>
+                    </div>
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label>Stempel</label>
+                    <div class="file-upload-wrapper" id="wrap-stempel">
+                        <input type="file" onchange="handleUIFile(this, 'stempel', 'lbl-stempel')">
+                        <div class="custom-file-btn" id="lbl-stempel">💮 Upload Cap</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group foto-box-warning">
+                <label style="color: #c0392b; margin-bottom: 2px;">📸 Upload Pas Foto Peserta</label>
+                <p style="font-size: 11px; margin-top: 0; color: #c0392b; font-weight: bold;">
+                    ⚠️ WAJIB: Ganti nama file foto menjadi NISN siswa terlebih dahulu (contoh: <span style="background: white; padding: 2px 4px; border-radius: 3px;">12345678.jpg</span>). Anda bisa memilih banyak foto sekaligus!
+                </p>
+                <div class="file-upload-wrapper" id="wrap-foto">
+                    <input type="file" multiple onchange="handlePhotos(this)">
+                    <div class="custom-file-btn" id="lbl-foto" style="border-color: #ffcccc; color: #c0392b; background: white;">📁 Pilih Banyak Foto Sekaligus</div>
+                </div>
+            </div>
+            
+            <div class="form-group upload-excel-box">
+                <label style="color: var(--primary-color); font-size: 14px; margin-bottom: 5px;">📊 Upload Data Excel (.xlsx)</label>
+                <p style="font-size: 11px; margin-top: 0; color: #64748b; margin-bottom: 10px;">Kolom wajib: <b>Nama, NISN, TTL, Kelas, No_Peserta, Ruang</b></p>
+                <div class="file-upload-wrapper" id="wrap-excel">
+                    <input type="file" id="upload-excel" accept=".xlsx, .xls">
+                    <div class="custom-file-btn" id="lbl-excel" style="background: white; border-color: #4a69bd;">📥 Pilih File Excel</div>
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-top: auto;">
+            <div class="credit-text">Created by Nabil Agus M</div>
+            <div class="btn-container">
+                <button class="btn-guide" onclick="openModal()">📖 Petunjuk Penggunaan</button>
+                <button class="btn-reset" onclick="resetData()">🗑️ Reset</button>
+                <button class="btn-print" onclick="window.print()">🖨️ Cetak (F4)</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AREA KANAN: Preview Kartu -->
+    <div class="preview-wrapper">
+        <h3 class="preview-header no-print">Pratinjau Kartu Ujian</h3>
+        <div id="print-area"></div>
+    </div>
+
+</div>
+
+<!-- MODAL PETUNJUK -->
+<div id="tutorialModal" class="modal">
+  <div class="modal-content">
+    <span class="close" onclick="closeModal()">&times;</span>
+    <h2>📖 Petunjuk Penggunaan Aplikasi</h2>
+    <ol>
+        <li>Isi data sekolah seperti Nama Kabupaten, Nama Sekolah, Alamat, dan Identitas Kepala Sekolah pada formulir yang disediakan.</li>
+        <li>Unggah Logo Sekolah, Tanda Tangan, dan Stempel sekolah Anda (format JPG/PNG).</li>
+        <li><span class="highlight">Sangat Penting:</span> Sebelum mengunggah <b>Pas Foto Peserta</b>, pastikan nama file foto sudah diubah (<i>rename</i>) menjadi nomor <b>NISN</b> peserta (Contoh: <code>12345678.jpg</code>).</li>
+        <li>Anda dapat mengunggah banyak pas foto sekaligus dengan cara memblok semua foto di komputer Anda.</li>
+        <li>Siapkan dan unggah data siswa menggunakan format <b>Excel (.xlsx)</b>. Pastikan judul kolom (header) adalah: <i>Nama, NISN, TTL, Kelas, No_Peserta, Ruang</i>.</li>
+        <li>Pratinjau kartu akan otomatis muncul di sebelah kanan. Jika semua sudah sesuai dan pas, klik tombol <b>Cetak (F4)</b>.</li>
+    </ol>
+    <div style="text-align: center; margin-top: 20px;">
+        <button style="background: var(--primary-color); width: auto; padding: 10px 30px;" onclick="closeModal()">Saya Mengerti</button>
+    </div>
+  </div>
+</div>
+
+<script>
+    let pesertaData = [];
+    let photoMap = {};
+    let images = { logo1: '', logo2: '', ttd: '', stempel: '' };
+
+    const dummy = {
+        Nama: 'CONTOH NAMA SISWA LENGKAP',
+        NISN: '0000000000',
+        TTL: 'KOTA, DD-MM-YYYY',
+        Kelas: 'X-A',
+        No_Peserta: '00-000-000',
+        Ruang: 'RUANG 01'
+    };
+
+    window.onload = () => { generateCards(); };
+
+    // Modal Script
+    function openModal() { document.getElementById('tutorialModal').style.display = 'block'; }
+    function closeModal() { document.getElementById('tutorialModal').style.display = 'none'; }
+    window.onclick = function(event) {
+        if (event.target == document.getElementById('tutorialModal')) { closeModal(); }
+    }
+
+    // Interactivity UI File Input
+    function handleUIFile(input, type, labelId) {
+        const label = document.getElementById(labelId);
+        const wrapper = document.getElementById('wrap-' + type);
+        
+        if (input.files && input.files[0]) {
+            label.innerHTML = `✅ ${input.files[0].name.substring(0, 15)}...`;
+            wrapper.classList.add('active');
+            // Logic Image
+            const reader = new FileReader();
+            reader.onload = (e) => { images[type] = e.target.result; generateCards(); };
+            reader.readAsDataURL(input.files[0]);
+        } else {
+            wrapper.classList.remove('active');
+        }
+    }
+
+    function handlePhotos(input) {
+        const label = document.getElementById('lbl-foto');
+        const wrapper = document.getElementById('wrap-foto');
+        
+        if (input.files && input.files.length > 0) {
+            label.innerHTML = `✅ ${input.files.length} Foto Terpilih`;
+            wrapper.classList.add('active');
+            Array.from(input.files).forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const key = file.name.split('.').slice(0, -1).join('.');
+                    photoMap[key] = e.target.result;
+                    generateCards();
+                };
+                reader.readAsDataURL(file);
+            });
+        } else {
+            wrapper.classList.remove('active');
+            label.innerHTML = `📁 Pilih Banyak Foto Sekaligus`;
+        }
+    }
+
+    document.getElementById('upload-excel').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        const label = document.getElementById('lbl-excel');
+        const wrapper = document.getElementById('wrap-excel');
+        
+        if (file) {
+            label.innerHTML = `✅ Data Excel Dimuat`;
+            wrapper.classList.add('active');
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, {type: 'array'});
+                pesertaData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+                generateCards();
+            };
+            reader.readAsArrayBuffer(file);
+        } else {
+            wrapper.classList.remove('active');
+            label.innerHTML = `📥 Pilih File Excel`;
+        }
+    });
+
+    function resetData() {
+        if(confirm("Apakah Anda yakin ingin menghapus semua data?")) { location.reload(); }
+    }
+
+    function generateCards() {
+        const area = document.getElementById('print-area');
+        const kab = document.getElementById('input-kab').value || 'PEMERINTAH KABUPATEN BOGOR';
+        const sekolah = document.getElementById('input-sekolah').value || 'MTs NEGERI 1 BOGOR';
+        const ujian = document.getElementById('input-ujian').value || 'ASESMEN MADRASAH TP. 2024/2025';
+        const alamat = document.getElementById('input-alamat').value || 'Jl. Raya Utama No. 123, Kec. Cibinong';
+        const kepsek = document.getElementById('input-kepsek').value || 'Drs. H. Mulyadi, M.Pd';
+        const nip = document.getElementById('input-nip').value || '19750101 200003 1 002';
+
+        area.innerHTML = '';
+        const dataToShow = pesertaData.length > 0 ? pesertaData : [dummy, dummy];
+
+        dataToShow.forEach((p, i) => {
+            const qrId = `qr-${i}`;
+            const photoSrc = photoMap[p.NISN] || '';
+            
+            const card = `
+                <div class="card">
+                    <div class="card-header">
+                        <img src="${images.logo1}" class="logo-box" onerror="this.style.visibility='hidden'">
+                        <div class="header-text">
+                            <p class="kab">${kab}</p>
+                            <h2>${sekolah}</h2>
+                            <p class="ujian">${ujian}</p>
+                            <p class="alamat">${alamat}</p>
+                        </div>
+                        <img src="${images.logo2}" class="logo-box" onerror="this.style.visibility='hidden'">
+                    </div>
+                    
+                    <div class="card-title">KARTU TANDA PESERTA</div>
+                    
+                    <div class="card-content">
+                        <div class="photo-box">${photoSrc ? `<img src="${photoSrc}">` : 'PAS<br>FOTO<br>2x3'}</div>
+                        <div class="info-table">
+                            <table>
+                                <tr><td class="label-cell">Nama</td><td>${p.Nama || '-'}</td></tr>
+                                <tr><td class="label-cell">NISN</td><td>${p.NISN || '-'}</td></tr>
+                                <tr><td class="label-cell">T.T.L</td><td>${p.TTL || '-'}</td></tr>
+                                <tr><td class="label-cell">Kelas</td><td>${p.Kelas || '-'}</td></tr>
+                                <tr><td class="label-cell">No. Peserta</td><td>${p.No_Peserta || '-'}</td></tr>
+                                <tr><td class="label-cell">Ruang</td><td>${p.Ruang || '-'}</td></tr>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="footer">
+                        <div class="qr-code" id="${qrId}"></div>
+                        <div class="signature-area">
+                            <div class="job-title">Kepala Sekolah,</div>
+                            <div class="ttd-box">
+                                <img src="${images.stempel}" class="img-stempel" onerror="this.style.display='none'">
+                                <img src="${images.ttd}" class="img-ttd" onerror="this.style.display='none'">
+                            </div>
+                            <div class="headmaster-name">${kepsek}</div>
+                            <div class="headmaster-nip">NIP. ${nip}</div>
+                        </div>
+                    </div>
+                </div>`;
+            area.insertAdjacentHTML('beforeend', card);
+            new QRCode(document.getElementById(qrId), { text: p.No_Peserta || p.NISN || '', width: 45, height: 45 });
+        });
+    }
+    function updatePreview() { generateCards(); }
+</script>
+</body>
+</html>
